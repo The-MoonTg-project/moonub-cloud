@@ -70,9 +70,9 @@ async def urldl(client: Client, message: Message):
     await message.edit("<b>Downloading...</b>", parse_mode=enums.ParseMode.HTML)
     try:
         os.makedirs('downloads')
-        file_name = "downloads/" + link.split("/")[-1]
     except FileExistsError:
-        file_name = "downloads/" + link.split("/")[-1]
+        pass
+    file_name = "downloads/" + link.split("/")[-1]
 
     try:
         resp = requests.get(link, stream=True)
