@@ -14,16 +14,26 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
-import requests
 import time
-import traceback
+import math
+
+from datetime import datetime
+from urllib.parse import unquote
+from io import BytesIO
+
+import asyncio
+import mimetypes
+import requests
 import urllib3
+
+from pySmartDL import SmartDL
+
 from pyrogram import Client, filters, enums
 from pyrogram.types import Message
-from utils.misc import modules_help, prefix
-from utils.scripts import format_exc, progress, edit_or_reply
+from pyrogram.errors import MessageNotModified
 
-from io import BytesIO
+from utils.misc import modules_help, prefix
+from utils.scripts import format_exc, progress, humanbytes
 
 from utils.config import apiflash_key
 
@@ -31,7 +41,7 @@ from utils.config import apiflash_key
 
 def generate_screenshot(url):
     api_url = f'https://api.apiflash.com/v1/urltoimage?access_key={apiflash_key}&url={url}&format=png'
-    response = requests.get(api_url)
+    response = requests.get(api_url, timeout=5)
     if response.status_code == 200:
         return BytesIO(response.content)
     else:
@@ -42,23 +52,23 @@ http = urllib3.PoolManager()
 
 @Client.on_message(filters.command("short", prefix) & filters.me)
 async def short(_, message: Message):
-  if len(message.command) > 1:
-      link = message.text.split(maxsplit=1)[1]
-  elif message.reply_to_message:
-      link = message.reply_to_message.text
-  else:
-      await message.edit(f"<b>Usage: </b><code>{prefix}short [url to short]</code>", parse_mode=enums.ParseMode.HTML)
-      return
-
-  r = http.request('GET', 'https://clck.ru/--?url='+link)
-
-  await message.edit(r.data.decode().replace("https://", "<b>Shortened Url:</b>"), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
+    if len(message.command) > 1:
+        link = message.text.split(maxsplit=1)[1]
+    elif message.reply_to_message:
+        link = message.reply_to_message.text
+    else:
+        await message.edit(f"<b>Usage: </b><code>{prefix}short [url to short]</code>", parse_mode=enums.ParseMode.HTML)
+        return  
+    r = http.request('GET', 'https://clck.ru/--?url='+link) 
+    await message.edit(r.data.decode().replace("https://", "<b>Shortened Url:</b>"), disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
 
 @Client.on_message(filters.command("urldl", prefix) & filters.me)
 async def urldl(client: Client, message: Message):
     if len(message.command) > 1:
+        message_id = None
         link = message.text.split(maxsplit=1)[1]
     elif message.reply_to_message:
+        message_id = message.reply_to_message.id
         link = message.reply_to_message.text
     else:
         await message.edit(
@@ -67,41 +77,85 @@ async def urldl(client: Client, message: Message):
         )
         return
 
-    await message.edit("<b>Downloading...</b>", parse_mode=enums.ParseMode.HTML)
+    await message.edit("<b>Trying to download...</b>")
+
+    ext = '.' + link.split('.')[-1]
+    c_time = time.time()
+
+    resp = requests.head(link, allow_redirects=True, timeout=5)
+    if resp.status_code != 200:
+        return await message.edit("<b>Failed to fetch request header information</b>")
+
+    content_type = resp.headers.get('Content-Type').split(';')[0]
+    extension = mimetypes.guess_extension(content_type)
+
     try:
         os.makedirs('downloads')
-        file_name = "downloads/" + link.split("/")[-1]
+        if ext == extension:
+            file_name = "downloads/" + link.split("/")[-1]
+        else:
+            file_name = "downloads/" + link.split("/")[-1] + extension
+    except FileNotFoundError:
+        if ext == extension:
+            file_name = "downloads/" + link.split("/")[-1]
+        else:
+            file_name = "downloads/" + link.split("/")[-1] + extension
     except FileExistsError:
-        file_name = "downloads/" + link.split("/")[-1]
+        if ext == extension:
+            file_name = "downloads/" + link.split("/")[-1]
+        else:
+            file_name = "downloads/" + link.split("/")[-1] + extension
 
+    downloader = SmartDL(link, file_name, progress_bar=False, timeout=10)
+    start_t = datetime.now()
     try:
-        resp = requests.get(link, stream=True)
-        resp.raise_for_status()
-
-        # Get the total file size
-        total_size = int(resp.headers.get('content-length', 0))
-
-        with open(file_name, "wb") as f:
-            downloaded = 0
-            chunk_count = 0
-            update_frequency = 800
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-                downloaded += len(chunk)
-                chunk_count += 1
-                progress_dl = (downloaded / total_size) * 100
-                if chunk_count % update_frequency == 0:
-                    await message.edit_text(f"<b>Downloading...</b>\nProgress: {progress_dl:.2f}%")
-
-        ms_ = await message.edit("<b>Uploading...</b>", parse_mode=enums.ParseMode.HTML)
-        c_time = time.time()
-        await client.send_document(message.chat.id, file_name, progress=progress, progress_args=(ms_, c_time, '`Uploading...`'), parse_mode=enums.ParseMode.MARKDOWN)
-        await message.delete()
+        downloader.start(blocking=False)
     except Exception as e:
-        await message.edit(f"<b>Error:</b> {traceback.format_exc(e)}", parse_mode=enums.ParseMode.HTML)
-    finally:
-        if os.path.exists(file_name):
-            os.remove(file_name)
+        return await message.edit_msg(format_exc(e))
+    while not downloader.isFinished():
+        total_length = downloader.filesize or None
+        downloaded = downloader.get_dl_size(human=True)
+        u_m = ""
+        now = time.time()
+        diff = now - c_time
+        percentage = downloader.get_progress() * 100
+        speed = downloader.get_speed(human=True)
+        progress_str = "{0}{1}\n<b>Progress:</b> {2}%".format(
+            "".join(["▰" for _ in range(math.floor(percentage / 5))]),
+            "".join(["▱" for _ in range(20 - math.floor(percentage / 5))]),
+            round(percentage, 2),
+        )
+        eta = downloader.get_eta(human=True)
+        try:
+            m = "<b>Trying to download...</b>\n"
+            m += (
+                f"<b>File Name:</b> <code>{unquote(link.split('/')[-1])}</code>\n"
+            )
+            m += f"<b>Speed:</b> {speed}\n"
+            m += f"{progress_str}\n"
+            m += f"{downloaded} of {humanbytes(total_length)}\n"
+            m += f"<b>ETA:</b> {eta}"
+            if round(diff % 10.00) == 0 and m != u_m:
+                await message.edit_text(
+                    disable_web_page_preview=True, text=m
+                )
+                u_m = m
+                await asyncio.sleep(5)
+        except Exception as e:
+            await message.edit_text(format_exc(e))
+    if os.path.exists(file_name):
+        end_t = datetime.now()
+        sec = (end_t - start_t).seconds
+        await message.edit_text(
+            f"<b>Downloaded to <code>{file_name}</code> in {sec} seconds</b>"
+        )
+        ms_ = await message.edit("<b>Starting Upload...</b>")
+        await client.send_document(message.chat.id, file_name, progress=progress, progress_args=(ms_, c_time, '`Uploading...`'), caption=f"<b>File Name:</b> <code>{unquote(link.split('/')[-1])}</code>\n", reply_to_message_id=message_id)
+        await message.delete()
+        os.remove(file_name)
+    else:
+        await message.edit("<b>Failed to download</b>")
+
 
 @Client.on_message(filters.command("upload", prefix) & filters.me)
 async def upload_cmd(_, message: Message):
@@ -178,12 +232,13 @@ async def webshot(client: Client, message: Message):
         return
 
     chat_id = message.chat.id
+    await message.edit("<b>Generating screenshot...</b>")
 
     try:
         screenshot_data = generate_screenshot(url)
         if screenshot_data:
             await message.delete()
-            await client.send_photo(chat_id, screenshot_data, caption=f"Screenshot of {url}")
+            await client.send_photo(chat_id, screenshot_data, caption=f"Screenshot of <code>{url}</code>")
         else:
             await message.reply_text("<code>Failed to generate screenshot...\nMake sure url is correct</code>")
     except Exception as e:
