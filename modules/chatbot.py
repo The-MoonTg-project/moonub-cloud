@@ -5,8 +5,6 @@ from utils.db import db
 
 cohere = import_library("cohere")
 
-import cohere
-
 co = cohere.Client(cohere_key)
 
 from utils.misc import modules_help, prefix
