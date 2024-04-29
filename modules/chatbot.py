@@ -86,9 +86,9 @@ async def chatbot(client: Client, message: Message):
 
 @Client.on_message(filters.command("chatoff", prefix) & filters.me)
 async def chatoff(client: Client, message: Message):
+    chatai_users = db.getaiusers()
     for user_id in chatai_users:
-        db.remove("core.chatbot", "chatai_users", user_id)
-    db.remove("core.chatbot", "chatai_users")
+        db.remove("core.chatbot", f"addusers{user_id}")
 
     await message.reply_text("<b>ChatBot is off now</b>")
 
