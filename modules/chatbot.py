@@ -15,7 +15,6 @@ from pyrogram import Client, filters, enums
 from pyrogram.types import Message
 
 chatai_users = db.getaiusers()
-print(chatai_users)
 
 @Client.on_message(filters.command("addai", prefix) & filters.me)
 async def adduser(client: Client, message: Message):
