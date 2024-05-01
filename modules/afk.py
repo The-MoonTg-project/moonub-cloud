@@ -19,11 +19,11 @@ import asyncio
 from datetime import datetime
 
 import humanize
-from pyrogram import Client, enums, filters
+from pyrogram import Client, filters
 from pyrogram.types import Message
 
 from utils.misc import modules_help, prefix
-from utils.scripts import import_library, ReplyCheck
+from utils.scripts import ReplyCheck
 
 # Variables
 AFK = False
@@ -74,7 +74,7 @@ async def collect_afk_messages(bot: Client, message: Message):
             )
             CHAT_TYPE[GetChatID(message)] = 1
             return
-        elif GetChatID(message) in CHAT_TYPE:
+        if GetChatID(message) in CHAT_TYPE:
             if CHAT_TYPE[GetChatID(message)] == 50:
                 text = (
                     f"<b>This is an automated message\n"
