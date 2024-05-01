@@ -69,26 +69,27 @@ def humanbytes(size):
 
 
 async def edit_or_send_as_file(
-    text: str,
+    tex: str,
     message: Message,
     client: Client,
     caption: str = "<code>Result!</code>",
     file_name: str = "result",
 ):
     """Send As File If Len Of Text Exceeds Tg Limit Else Edit Message"""
-    if not text:
+    if not tex:
         await message.edit("<code>Wait, What?</code>")
         return
-    if len(text) > 1024:
+    if len(tex) > 1024:
         await message.edit("<code>OutPut is Too Large, Sending As File!</code>")
-        file_names = f"{file_name}.text"
-        open(file_names, "w").write(text)
+        file_names = f"{file_name}.txt"
+        with open(file_names, "w") as fn:
+            fn.write(tex)
         await client.send_document(message.chat.id, file_names, caption=caption)
         await message.delete()
         if os.path.exists(file_names):
             os.remove(file_names)
         return
-    return await message.edit(text)
+    return await message.edit(tex)
 
 
 def get_text(message: Message) -> [None, str]:
@@ -190,13 +191,13 @@ def mediainfo(media):
     return m
 
 
-async def edit_or_reply(message, text):
+async def edit_or_reply(message, txt):
     """Edit Message If Its From Self, Else Reply To Message"""
     if not message:
-        return await message.edit(text)
+        return await message.edit(txt)
     if not message.from_user:
-        return await message.edit(text)
-    return await message.edit(text)
+        return await message.edit(txt)
+    return await message.edit(txt)
 
 
 def text(message: types.Message) -> str:
