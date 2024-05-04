@@ -92,16 +92,18 @@ class BanHandler:
             await self.ban_user(user_for_ban)
 
     async def handle_non_reply_ban(self):
-        if self.message.chat.type not in ["private", "channel"]:
-            if len(self.cause.split()) > 1:
-                user_to_ban = await self.get_user_to_ban()
-                if user_to_ban:
-                    self.name = (
-                        user_to_ban.first_name
-                        if getattr(user_to_ban, "first_name", None)
-                        else user_to_ban.title
-                    )
-                    await self.ban_user(user_to_ban.id)
+        if (
+            self.message.chat.type not in ["private", "channel"]
+            and len(self.cause.split()) > 1
+        ):
+            user_to_ban = await self.get_user_to_ban()
+            if user_to_ban:
+                self.name = (
+                    user_to_ban.first_name
+                    if getattr(user_to_ban, "first_name", None)
+                    else user_to_ban.title
+                )
+                await self.ban_user(user_to_ban.id)
 
     async def get_user_to_ban(self):
         user_type = await check_username_or_id(self.cause.split(" ")[1])
@@ -177,16 +179,18 @@ class UnbanHandler:
             await self.unban_user(user_for_unban)
 
     async def handle_non_reply_unban(self):
-        if self.message.chat.type not in ["private", "channel"]:
-            if len(self.cause.split()) > 1:
-                user_to_unban = await self.get_user_to_unban()
-                if user_to_unban:
-                    self.name = (
-                        user_to_unban.first_name
-                        if getattr(user_to_unban, "first_name", None)
-                        else user_to_unban.title
-                    )
-                    await self.unban_user(user_to_unban.id)
+        if (
+            self.message.chat.type not in ["private", "channel"]
+            and len(self.cause.split()) > 1
+        ):
+            user_to_unban = await self.get_user_to_unban()
+            if user_to_unban:
+                self.name = (
+                    user_to_unban.first_name
+                    if getattr(user_to_unban, "first_name", None)
+                    else user_to_unban.title
+                )
+                await self.unban_user(user_to_unban.id)
 
     async def get_user_to_unban(self):
         user_type = await check_username_or_id(self.cause.split(" ")[1])
@@ -888,13 +892,15 @@ class PromoteHandler:
                 user_id,
                 privileges=ChatPrivileges(**self.common_privileges_promote),
             )
-            if len(self.cause.split()) > 1:
-                if self.message.chat.type == "group":
-                    await self.client.set_administrator_title(
-                        self.chat_id,
-                        user_id,
-                        self.cause.split(maxsplit=1)[1],
-                    )
+            if (
+                len(self.cause.split()) > 1
+                and self.message.chat.type == "group"
+            ):
+                await self.client.set_administrator_title(
+                    self.chat_id,
+                    user_id,
+                    self.cause.split(maxsplit=1)[1],
+                )
         except Exception as e:
             await self.message.edit(format_exc(e))
 
@@ -1165,12 +1171,14 @@ class NoteSendHandler:
                 media_grouped_list.append(self.prepare_document(_))
         return media_grouped_list
 
-    def prepare_photo(self, message):
+    @staticmethod
+    def prepare_photo(message):
         if message.caption:
             return InputMediaPhoto(message.photo.file_id, message.caption.markdown)
         return InputMediaPhoto(message.photo.file_id)
 
-    def prepare_video(self, message):
+    @staticmethod
+    def prepare_video(message):
         if message.caption:
             if message.video.thumbs:
                 return InputMediaVideo(
@@ -1185,12 +1193,14 @@ class NoteSendHandler:
             )
         return InputMediaVideo(message.video.file_id)
 
-    def prepare_audio(self, message):
+    @staticmethod
+    def prepare_audio(message):
         if message.caption:
             return InputMediaAudio(message.audio.file_id, message.caption.markdown)
         return InputMediaAudio(message.audio.file_id)
 
-    def prepare_document(self, message):
+    @staticmethod
+    def prepare_document(message):
         if message.caption:
             if message.document.thumbs:
                 return InputMediaDocument(

@@ -74,7 +74,7 @@ def check_extension(file_path):
 
 
 @Client.on_message(filters.command("open", prefix) & filters.me)
-async def open(client: Client, message: Message):
+async def openfile(client: Client, message: Message):
     if not message.reply_to_message:
         return await message.edit_text("Kindly Reply to a File")
 
@@ -105,7 +105,7 @@ async def open(client: Client, message: Message):
         )
         content_new = f"{code_start}\n{content}{code_end}"
         paste = subprocess.run(
-            ["rentry", "new", content_new], capture_output=True, text=True
+            ["rentry", "new", content_new], capture_output=True, text=True, check=True
         )
         await client.send_message("me", paste.stdout, disable_web_page_preview=True)
         lines = paste.stdout.split("\n")

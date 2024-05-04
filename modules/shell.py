@@ -29,9 +29,9 @@ async def shell(_, message: Message):
     if len(message.command) < 2:
         return await message.edit("<b>Specify the command in message text</b>")
     cmd_text = message.text.split(maxsplit=1)[1]
+    cmd_args = cmd_text.split()
     cmd_obj = Popen(
-        cmd_text,
-        shell=True,
+        cmd_args,
         stdout=PIPE,
         stderr=PIPE,
         text=True,
@@ -55,6 +55,5 @@ async def shell(_, message: Message):
         text += f"<b>Completed in {round(stop_time - start_time, 5)} seconds with code {cmd_obj.returncode}</b>"
     await message.edit(text)
     cmd_obj.kill()
-
 
 modules_help["shell"] = {"sh [command]*": "Execute command in shell"}

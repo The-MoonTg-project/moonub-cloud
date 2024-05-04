@@ -3,6 +3,7 @@ import logging
 import asyncio
 from lexica import AsyncClient, Client
 
+
 def ImageModels():
     models = Client().models['models']['image']
     dict_models = {}
@@ -12,7 +13,8 @@ def ImageModels():
         dict_models[model_name] = model_id
     return dict_models
 
-async def ImageGeneration(model,prompt):
+
+async def ImageGeneration(model, prompt):
     try:
         output = await AsyncClient().generate(model, prompt, "")
         if output['code'] != 1:
@@ -36,9 +38,10 @@ async def ImageGeneration(model,prompt):
             continue
         return image_url
     except Exception as e:
-        logging.warn(f"Failed to generate the image:", e)
+        logging.warning(e)
     finally:
         await AsyncClient().close()
+
 
 async def UpscaleImages(image: bytes) -> str:
     content = await AsyncClient().upscale(image)

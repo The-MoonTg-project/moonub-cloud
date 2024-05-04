@@ -107,7 +107,7 @@ async def collect_afk_messages(bot: Client, message: Message):
 
 
 @Client.on_message(filters.command("afk", prefix) & filters.me, group=3)
-async def afk_set(bot: Client, message: Message):
+async def afk_set(_, message: Message):
     global AFK_REASON, AFK, AFK_TIME
 
     cmd = message.command
@@ -126,7 +126,7 @@ async def afk_set(bot: Client, message: Message):
 
 
 @Client.on_message(filters.command("afk", "!") & filters.me, group=3)
-async def afk_unset(bot: Client, message: Message):
+async def afk_unset(_, message: Message):
     global AFK, AFK_TIME, AFK_REASON, USERS, GROUPS
 
     if AFK:
@@ -134,7 +134,7 @@ async def afk_unset(bot: Client, message: Message):
         await message.edit(
             f"<code>While you were away (for {last_seen}), you received {sum(USERS.values()) + sum(GROUPS.values())} "
             f"messages from {len(USERS) + len(GROUPS)} chats</code>",
-)
+        )
         AFK = False
         AFK_TIME = ""
         AFK_REASON = ""
@@ -146,7 +146,7 @@ async def afk_unset(bot: Client, message: Message):
 
 
 @Client.on_message(filters.me, group=3)
-async def auto_afk_unset(bot: Client, message: Message):
+async def auto_afk_unset(_, message: Message):
     global AFK, AFK_TIME, AFK_REASON, USERS, GROUPS
 
     if AFK:
@@ -168,5 +168,3 @@ modules_help["afk"] = {
     "afk [reason]": "Go to AFK mode with reason as anything after .afk\nUsage: <code>.afk <reason></code>",
     "unafk": "Get out of AFK",
 }
-
-
