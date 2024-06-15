@@ -316,6 +316,8 @@ async def tts(client: Client, message: Message):
             audio=f"{prompt}.mp3",
             caption=f"<b>Characters:</b> <code>{character}</code>\n<b>Prompt:</b> <code>{prompt}</code>",
         )
+        if os.path.exists(f"{prompt}.mp3"):
+            os.remove(f"{prompt}.mp3")
 
     except KeyError:
         try:
@@ -327,9 +329,94 @@ async def tts(client: Client, message: Message):
             )
     except Exception as e:
         await message.edit_text(format_exc(e))
-    finally:
-        if os.path.exists(f"{prompt}.mp3"):
-            os.remove(f"{prompt}.mp3")
+
+
+@Client.on_message(
+    filters.command(["carbonnowsh", "carboon", "carbon", "cboon"], prefix) & filters.me
+)
+async def carbon(client: Client, message: Message):
+    if message.reply_to_message.text:
+        text = message.reply_to_message.text
+        message_id = message.reply_to_message.id
+    elif len(message.command) > 1:
+        message_id = None
+        text = message.text.split(maxsplit=1)[1]
+    elif message.document:
+        message_id = message.id
+        filepath = f"downloads/{message.document.file_name}"
+        await message.download(filepath)
+        with open(filepath, "r", encoding="utf-8") as f:
+            text = f.read()
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    elif message.reply_to_message.document:
+        message_id = message.reply_to_message.id
+        filepath = f"downloads/{message.reply_to_message.document.file_name}"
+        await message.reply_to_message.download(filepath)
+        with open(filepath, "r", encoding="utf-8") as f:
+            text = f.read()
+        if os.path.exists(filepath):
+            os.remove(filepath)
+    else:
+        await message.edit_text("Query not provided!")
+        return
+    await message.edit_text("Processing...")
+    response = requests.get(url=f"{url}/carbon?code={text}", headers=headers)
+    if response.status_code != 200:
+        await message.edit_text("Something went wrong")
+        return
+
+    result = response.json()
+    image = result["image"]
+    image_file = "carbon.png"
+
+    image_data = base64.b64decode(image)
+    with open(image_file, "wb") as f:
+        f.write(image_data)
+
+    await message.delete()
+    try:
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=image_file,
+            caption=f"<b>Text:</b> <code>{text}</code>",
+            reply_to_message_id=message_id,
+        )
+    except MediaCaptionTooLong:
+        cap = text[:850]
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=image_file,
+            caption=f"<b>Text:</b> <code>{cap}</code>",
+            reply_to_message_id=message_id,
+        )
+    except Exception as e:
+        await message.edit_text(format_exc(e))
+    if os.path.exists(image_file):
+        os.remove(image_file)
+
+
+@Client.on_message(filters.command("ccgen", prefix) & filters.me)
+async def ccgen(_, message: Message):
+    if len(message.command) > 1:
+        bins = message.text.split(maxsplit=1)[1]
+    else:
+        await message.edit_text("Code not provided!")
+        return
+    await message.edit_text("Processing...")
+    response = requests.get(url=f"{url}/ccgen?bins={bins}", headers=headers)
+    if response.status_code != 200:
+        await message.edit_text("Something went wrong")
+        return
+
+    result = response.json()
+
+    cards = result["results"][0]["cards"]
+    cards_str = "\n".join([f'"{card}"' for card in cards])
+    bins = result["results"][0]["bin"]
+    await message.edit_text(
+        f"Bins: <code>{bins}</code>\nTotal: <code>{len(cards)}</code>\nCards: \n<code>{cards_str}</code>"
+    )
 
 
 modules_help["safone"] = {
@@ -337,4 +424,7 @@ modules_help["safone"] = {
     "app [query]*": "Search for an app on Play Store",
     "tsearch [query]*": "Search Torrent",
     "tts [character]* [text/reply to text]*": "Convert Text to Speech",
+    "sgemini [prompt]*": "Gemini Model through safone api",
+    "carbon [code/file/reply]": "Create beautiful image with your code",
+    "ccgen [bins]*": "Generate credit cards",
 }
