@@ -1,6 +1,6 @@
 services:
     moonuserbot:
-        image: qbtaumai/moonuserbot:latest
+        image: qbtaumai/moonubcloud:latest-cloud
         container_name: moonuserbot
         restart: unless-stopped
         env_file:
