@@ -1,8 +1,13 @@
-version: "3"
 services:
     moonuserbot:
-        image: qbtaumai/moonubcloud:latest-cloud
+        image: qbtaumai/moonuserbot:latest
         container_name: moonuserbot
         restart: unless-stopped
         env_file:
             - .env
+        networks:
+            - default
+
+networks:
+    default:
+        external: false
