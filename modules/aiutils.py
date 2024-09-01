@@ -9,7 +9,7 @@ from utils.config import vca_api_key
 from utils.misc import modules_help, prefix
 from utils.scripts import format_exc
 
-api_url = "https://visioncraft.top"
+api_url = "https://visioncraft.top/api"
 
 
 async def fetch_models():
