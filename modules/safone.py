@@ -1,3 +1,19 @@
+#  Moon-Userbot - telegram userbot
+#  Copyright (C) 2020-present Moon Userbot Organization
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+
+#  You should have received a copy of the GNU General Public License
+#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import os
 import requests
 import aiofiles
@@ -10,7 +26,7 @@ from pyrogram.errors import MediaCaptionTooLong, MessageTooLong
 from utils.misc import prefix, modules_help
 from utils.scripts import format_exc, make_carbon
 
-url = "https://api.safone.dev"
+url = "https://api.safone.co"
 
 headers = {
     "Accept-Language": "en-US,en;q=0.9",
@@ -49,6 +65,31 @@ async def voice_characters():
     result = response.json()
 
     return ", ".join(result["characters"])
+
+
+async def make_rayso(code: str, title: str, theme: str):
+    data = {
+        "code": code,
+        "title": title,
+        "theme": theme,
+        "padding": 64,
+        "language": "auto",
+        "darkMode": False,
+    }
+    response = requests.post(f"{url}/rayso", data=data, headers=headers)
+    if response.status_code != 200:
+        return None
+    result = response.json()
+    try:
+        if result["error"] is not None:
+            return None
+    except KeyError:
+        pass
+    image_data = result["image"]
+    file_name = "rayso.png"
+    with open(file_name, "wb") as f:
+        f.write(base64.b64decode(image_data))
+    return file_name
 
 
 @Client.on_message(filters.command("asq", prefix) & filters.me)
@@ -333,28 +374,12 @@ async def tts(client: Client, message: Message):
     filters.command(["carbonnowsh", "carboon", "carbon", "cboon"], prefix) & filters.me
 )
 async def carbon(client: Client, message: Message):
-    if message.reply_to_message.text:
+    if message.reply_to_message:
         text = message.reply_to_message.text
         message_id = message.reply_to_message.id
     elif len(message.command) > 1:
         message_id = None
         text = message.text.split(maxsplit=1)[1]
-    elif message.document:
-        message_id = message.id
-        filepath = f"downloads/{message.document.file_name}"
-        await message.download(filepath)
-        with open(filepath, "r", encoding="utf-8") as f:
-            text = f.read()
-        if os.path.exists(filepath):
-            os.remove(filepath)
-    elif message.reply_to_message.document:
-        message_id = message.reply_to_message.id
-        filepath = f"downloads/{message.reply_to_message.document.file_name}"
-        await message.reply_to_message.download(filepath)
-        with open(filepath, "r", encoding="utf-8") as f:
-            text = f.read()
-        if os.path.exists(filepath):
-            os.remove(filepath)
     else:
         await message.edit_text("Query not provided!")
         return
@@ -407,6 +432,79 @@ async def ccgen(_, message: Message):
     )
 
 
+@Client.on_message(filters.command("rayso", prefix) & filters.me)
+async def rayso(client: Client, message: Message):
+    title = "Untitled"
+    themes = [
+        "vercel",
+        "supabase",
+        "tailwind",
+        "clerk",
+        "mintlify",
+        "prisma",
+        "bitmap",
+        "noir",
+        "ice",
+        "sand",
+        "forest",
+        "mono",
+        "breeze",
+        "candy",
+        "crimson",
+        "falcon",
+        "meadow",
+        "midnight",
+        "raindrop",
+        "sunset",
+    ]
+    if message.reply_to_message:
+        text = message.reply_to_message.text
+        message_id = message.reply_to_message.id
+        if 2 <= len(message.command) <= 3:
+            title = message.text.split(maxsplit=2)[1]
+            theme = message.text.split(maxsplit=2)[2].lower()
+            if theme not in themes:
+                theme = "breeze"
+    elif len(message.command) > 1:
+        message_id = message.id
+        title = message.text.split(maxsplit=3)[1]
+        theme = message.text.split(maxsplit=3)[2]
+        if theme not in themes:
+            theme = "breeze"
+        text = message.text.split(maxsplit=3)[3]
+    else:
+        await message.edit_text("Query not provided!")
+        return
+    await message.edit_text("Processing...")
+
+    image_file = await make_rayso(text, title, theme)
+
+    if image_file is None:
+        await message.edit_text("Something went wrong")
+        return
+    try:
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=image_file,
+            caption=f"<b>Text:</b> <code>{text}</code>",
+            reply_to_message_id=message_id,
+        )
+        await message.delete()
+    except MediaCaptionTooLong:
+        cap = text[:850]
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=image_file,
+            caption=f"<b>Text:</b> <code>{cap}</code>",
+            reply_to_message_id=message_id,
+        )
+        await message.delete()
+    except Exception as e:
+        await message.edit_text(format_exc(e))
+    if os.path.exists(image_file):
+        os.remove(image_file)
+
+
 modules_help["safone"] = {
     "asq [query]*": "Asq",
     "app [query]*": "Search for an app on Play Store",
@@ -415,4 +513,5 @@ modules_help["safone"] = {
     "sgemini [prompt]*": "Gemini Model through safone api",
     "carbon [code/file/reply]": "Create beautiful image with your code",
     "ccgen [bins]*": "Generate credit cards",
+    "rayso [title]* [theme]* [text/reply to text]*": "Create beautiful image with your text",
 }
